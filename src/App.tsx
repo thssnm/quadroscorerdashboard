@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { acknowledgeBoard, deleteHistoryEntry, fetchGistData, GistApiError, savePlayers } from "./gist/api";
 import type { BoardEntry, HistoryEntry } from "./gist/types";
-import { clearConfig, loadConfig, saveConfig } from "./gist/config";
+import { clearGistId, getEnvToken, loadGistId, saveGistId } from "./gist/config";
 import { SetupScreen } from "./components/SetupScreen";
 import { BoardCard } from "./components/BoardCard";
 import { PlayerManager } from "./components/PlayerManager";
@@ -11,7 +11,8 @@ import "./App.css";
 const POLL_INTERVAL_MS = 7000;
 
 function App() {
-  const [config, setConfig] = useState(() => loadConfig());
+  const token = getEnvToken();
+  const [gistId, setGistId] = useState(() => loadGistId());
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [players, setPlayers] = useState<string[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -21,14 +22,14 @@ function App() {
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!config) return;
+    if (!token || !gistId) return;
     try {
       setLoading(true);
       const {
         boards: fetchedBoards,
         players: fetchedPlayers,
         history: fetchedHistory,
-      } = await fetchGistData(config.token, config.gistId);
+      } = await fetchGistData(token, gistId);
       setBoards(fetchedBoards);
       setPlayers(fetchedPlayers);
       setHistory(fetchedHistory);
@@ -38,28 +39,44 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [config]);
+  }, [token, gistId]);
 
   // Lädt beim ersten Verbinden und danach alle POLL_INTERVAL_MS erneut.
   // refresh() setzt State erst NACH dem asynchronen fetch, nicht
   // synchron im Effekt - das ist hier bewusst so (Datenladen bei Mount),
   // keine vermeidbare Kaskade.
   useEffect(() => {
-    if (!config) return;
+    if (!token || !gistId) return;
     refresh();
     pollTimer.current = setInterval(refresh, POLL_INTERVAL_MS);
     return () => {
       if (pollTimer.current) clearInterval(pollTimer.current);
     };
-  }, [config, refresh]);
+  }, [token, gistId, refresh]);
 
-  if (!config) {
+  // Ohne Token (Umgebungsvariable VITE_GITHUB_TOKEN fehlt) kann die App
+  // grundsätzlich nicht funktionieren - das ist ein Deployment-Fehler,
+  // kein Nutzereingabe-Fehler, daher eine eigene, klare Meldung statt des
+  // normalen Setup-Screens.
+  if (!token) {
+    return (
+      <div className="setup-screen">
+        <h1>Konfiguration fehlt</h1>
+        <p className="setup-hint">
+          Die Umgebungsvariable <code>VITE_GITHUB_TOKEN</code> ist nicht gesetzt. Für lokale
+          Entwicklung eine <code>.env</code>-Datei anlegen, für die Bereitstellung auf Vercel die
+          Variable in den Projekteinstellungen hinterlegen und neu deployen.
+        </p>
+      </div>
+    );
+  }
+
+  if (!gistId) {
     return (
       <SetupScreen
-        onSave={(token, gistId) => {
-          const newConfig = { token, gistId };
-          saveConfig(newConfig);
-          setConfig(newConfig);
+        onSave={(id) => {
+          saveGistId(id);
+          setGistId(id);
         }}
       />
     );
@@ -68,7 +85,7 @@ function App() {
   const handleAcknowledge = async (entry: BoardEntry) => {
     setSavingKey(entry.filename);
     try {
-      await acknowledgeBoard(config.token, config.gistId, entry, history);
+      await acknowledgeBoard(token, gistId, entry, history);
       await refresh();
     } catch (e) {
       setError(e instanceof GistApiError ? e.message : "Fehler beim Speichern.");
@@ -81,7 +98,7 @@ function App() {
     setSavingKey("players");
     setPlayers(updated); // optimistisch anzeigen, damit die Liste sofort reagiert
     try {
-      await savePlayers(config.token, config.gistId, updated);
+      await savePlayers(token, gistId, updated);
     } catch (e) {
       setError(e instanceof GistApiError ? e.message : "Fehler beim Speichern der Spielerliste.");
       await refresh(); // bei Fehler zurück auf den tatsächlichen Stand
@@ -95,7 +112,7 @@ function App() {
   const handleDeleteHistoryEntry = async (entry: HistoryEntry) => {
     setSavingKey(historyKey(entry));
     try {
-      await deleteHistoryEntry(config.token, config.gistId, history, entry.acknowledgedAt);
+      await deleteHistoryEntry(token, gistId, history, entry.acknowledgedAt);
       await refresh();
     } catch (e) {
       setError(e instanceof GistApiError ? e.message : "Fehler beim Löschen.");
@@ -116,9 +133,9 @@ function App() {
           <button
             className="settings-btn"
             onClick={() => {
-              if (window.confirm("Verbindung trennen und Token/Gist-ID neu eingeben?")) {
-                clearConfig();
-                setConfig(null);
+              if (window.confirm("Gist-ID zurücksetzen und neu eingeben?")) {
+                clearGistId();
+                setGistId(null);
               }
             }}
           >

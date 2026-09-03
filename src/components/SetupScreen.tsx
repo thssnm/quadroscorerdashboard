@@ -1,34 +1,21 @@
 import { useState } from "react";
 
 interface SetupScreenProps {
-  onSave: (token: string, gistId: string) => void;
+  onSave: (gistId: string) => void;
 }
 
 export const SetupScreen = ({ onSave }: SetupScreenProps) => {
-  const [token, setToken] = useState("");
   const [gistId, setGistId] = useState("");
 
-  const canSubmit = token.trim().length > 0 && gistId.trim().length > 0;
+  const canSubmit = gistId.trim().length > 0;
 
   return (
     <div className="setup-screen">
       <h1>Dashboard einrichten</h1>
       <p className="setup-hint">
-        Zum Empfangen der Ergebnisse wird ein GitHub Personal Access Token benötigt, das nur
-        Zugriff auf Gists hat (Scope <code>gist</code>) — kein Zugriff auf Repositories oder
-        andere Daten deines Accounts nötig. Erstellbar unter GitHub → Settings → Developer
-        settings → Personal access tokens.
+        Der GitHub-Token ist fest in dieser Bereitstellung hinterlegt. Trage hier nur noch die
+        ID des Gists ein, aus dem Ergebnisse empfangen werden sollen.
       </p>
-
-      <div className="setup-row">
-        <label>GitHub Token</label>
-        <input
-          type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="ghp_..."
-        />
-      </div>
 
       <div className="setup-row">
         <label>Gist-ID</label>
@@ -43,11 +30,7 @@ export const SetupScreen = ({ onSave }: SetupScreenProps) => {
         </p>
       </div>
 
-      <button
-        className="start-btn"
-        disabled={!canSubmit}
-        onClick={() => onSave(token.trim(), gistId.trim())}
-      >
+      <button className="start-btn" disabled={!canSubmit} onClick={() => onSave(gistId.trim())}>
         Speichern und verbinden
       </button>
     </div>
