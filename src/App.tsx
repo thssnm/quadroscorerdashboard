@@ -2,13 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { acknowledgeBoard, deleteHistoryEntry, fetchGistData, GistApiError, savePlayers } from "./gist/api";
 import type { BoardEntry, HistoryEntry } from "./gist/types";
 import { clearGistId, getEnvToken, loadGistId, saveGistId } from "./gist/config";
+import { computeTournamentStats } from "./gist/tournamentStats";
 import { SetupScreen } from "./components/SetupScreen";
 import { BoardCard } from "./components/BoardCard";
 import { PlayerManager } from "./components/PlayerManager";
 import { HistoryList } from "./components/HistoryList";
+import { TournamentStats } from "./components/TournamentStats";
 import "./App.css";
 
-const POLL_INTERVAL_MS = 7000;
+const POLL_INTERVAL_MS = 10000;
 
 function App() {
   const token = getEnvToken();
@@ -123,6 +125,7 @@ function App() {
 
   const pendingBoards = boards.filter((b) => !b.data.acknowledged);
   const pendingCount = pendingBoards.length;
+  const tournamentStats = computeTournamentStats(history);
 
   return (
     <div className="app">
@@ -182,6 +185,11 @@ function App() {
 
       <section className="app__section">
         <PlayerManager players={players} onSave={handleSavePlayers} isSaving={savingKey === "players"} />
+      </section>
+
+      <section className="app__section">
+        <h2>Turnier-Statistik</h2>
+        <TournamentStats stats={tournamentStats} />
       </section>
     </div>
   );

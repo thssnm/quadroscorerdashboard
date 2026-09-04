@@ -10,6 +10,11 @@ export interface BoardResult {
   highlights: string[];
   updatedAt: string; // ISO-Zeitstempel
   acknowledged: boolean;
+  // Average pro Spieler für dieses eine Match - optional, weil der Scorer
+  // dieses Feld aktuell noch nicht mitliefert. Sobald vorhanden, fließt es
+  // in die Turnier-Statistik (Durchschnitt über alle Spiele) ein.
+  averageHome?: number;
+  averageGuest?: number;
 }
 
 export interface PlayersFile {

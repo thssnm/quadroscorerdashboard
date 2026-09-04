@@ -35,10 +35,22 @@ export const HistoryList = ({ history, onDelete, isDeleting }: HistoryListProps)
     <ul className="history-list">
       {history.map((entry) => (
         <li key={entry.acknowledgedAt} className="history-list__row">
-          <span className="history-list__names">
-            {entry.home} <strong>{entry.legsHome}:{entry.legsGuest}</strong> {entry.guest}
-          </span>
-          <span className="history-list__time">{formatTimestamp(entry.acknowledgedAt)}</span>
+          <div className="history-list__main">
+            <div className="history-list__top">
+              <span className="history-list__board">{entry.boardName}</span>
+              <span className="history-list__time">{formatTimestamp(entry.acknowledgedAt)}</span>
+            </div>
+            <span className="history-list__names">
+              {entry.home} <strong>{entry.legsHome}:{entry.legsGuest}</strong> {entry.guest}
+            </span>
+            {entry.highlights.length > 0 && (
+              <ul className="history-list__highlights">
+                {entry.highlights.map((h, i) => (
+                  <li key={i}>{h}</li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button
             className="history-list__delete"
             onClick={() => handleDelete(entry)}

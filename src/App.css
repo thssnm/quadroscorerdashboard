@@ -23,9 +23,9 @@ body {
 }
 
 .app {
-  max-width: 1000px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 16px 20px 48px;
+  padding: 16px 24px 48px;
 }
 
 /* ---------- Setup ---------- */
@@ -187,7 +187,7 @@ body {
 /* ---------- Board Grid / Card ---------- */
 .board-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 14px;
 }
 
@@ -245,7 +245,9 @@ body {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.2;
 }
 
 .board-card__score span:last-child {
@@ -398,7 +400,7 @@ body {
 .history-list__row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -407,8 +409,29 @@ body {
   font-size: 0.9rem;
 }
 
-.history-list__names {
+.history-list__main {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-list__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-list__board {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-list__names {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -416,6 +439,13 @@ body {
 
 .history-list__names strong {
   margin: 0 6px;
+}
+
+.history-list__highlights {
+  margin: 2px 0 0;
+  padding-left: 16px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
 }
 
 .history-list__time {
@@ -443,4 +473,44 @@ body {
 .history-list__delete:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ---------- Tournament Stats ---------- */
+.tournament-stats {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+.tournament-stats th,
+.tournament-stats td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tournament-stats th {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-box);
+}
+
+.tournament-stats tr:last-child td {
+  border-bottom: none;
+}
+
+.tournament-stats__highlights {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.tournament-stats__highlights ul {
+  margin: 0;
+  padding-left: 16px;
 }
