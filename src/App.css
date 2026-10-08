@@ -319,11 +319,6 @@ body {
   padding: 16px;
 }
 
-.player-manager h2 {
-  margin: 0 0 12px;
-  font-size: 1.1rem;
-}
-
 .player-manager__add {
   display: flex;
   gap: 8px;
@@ -486,13 +481,8 @@ body {
   cursor: not-allowed;
 }
 
-/* ---------- Papierkorb ---------- */
-.history-list__deleted-at {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-}
-
-.trash-list__toggle {
+/* ---------- Einklappbare Sektionen ---------- */
+.section-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -508,12 +498,18 @@ body {
   cursor: pointer;
 }
 
-.trash-list__toggle:hover {
+.section-toggle:hover {
   color: var(--text);
 }
 
-.trash-list__caret {
+.section-toggle__caret {
   font-size: 0.8rem;
+}
+
+/* ---------- Papierkorb ---------- */
+.history-list__deleted-at {
+  font-size: 0.75rem;
+  color: var(--text-dim);
 }
 
 .trash-list__actions {

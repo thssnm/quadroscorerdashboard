@@ -27,8 +27,8 @@ export const TrashList = ({ history, onRestore, onPurge, isBusy }: TrashListProp
 
   return (
     <section className="app__section">
-      <button className="trash-list__toggle" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
-        <span className="trash-list__caret">{expanded ? "▾" : "▸"}</span>
+      <button className="section-toggle" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+        <span className="section-toggle__caret">{expanded ? "▾" : "▸"}</span>
         Papierkorb ({entries.length})
       </button>
 
