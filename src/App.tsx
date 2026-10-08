@@ -214,7 +214,6 @@ function App() {
       </section>
 
       <section className="app__section">
-        <h2>Verlauf</h2>
         <HistoryList
           history={history}
           onDelete={handleDeleteHistoryEntry}
