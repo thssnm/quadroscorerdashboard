@@ -35,6 +35,11 @@ export interface BoardEntry {
 // verloren gehen. Beim Abhaken kopiert das Dashboard den Eintrag hierher.
 export interface HistoryEntry extends BoardResult {
   acknowledgedAt: string; // ISO-Zeitstempel, wann im Dashboard abgehakt wurde
+  // Soft-Delete: gesetzt, sobald der Eintrag im Dashboard gelöscht wurde.
+  // Der Eintrag bleibt dabei in history.json erhalten und ist über den
+  // Papierkorb wiederherstellbar. Bestehende Einträge ohne dieses Feld
+  // gelten als aktiv - eine Migration ist deshalb nicht nötig.
+  deletedAt?: string; // ISO-Zeitstempel, wann gelöscht wurde
 }
 
 export interface HistoryFile {

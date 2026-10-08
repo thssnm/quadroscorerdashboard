@@ -1,5 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { acknowledgeBoard, deleteHistoryEntry, fetchGistData, GistApiError, patchGistFile } from "./api";
+import {
+  acknowledgeBoard,
+  deleteHistoryEntry,
+  fetchGistData,
+  GistApiError,
+  patchGistFile,
+  purgeHistoryEntry,
+  restoreHistoryEntry,
+} from "./api";
 
 const validBoard = {
   boardName: "Board 1",
@@ -193,12 +201,18 @@ describe("acknowledgeBoard", () => {
   });
 });
 
+// Liest den Inhalt der geschriebenen history.json aus dem Mock-Aufruf.
+const writtenHistory = (fetchMock: ReturnType<typeof vi.fn>, callIndex = 0) => {
+  const body = JSON.parse((fetchMock.mock.calls[callIndex][1] as RequestInit).body as string);
+  return JSON.parse(body.files["history.json"].content).entries as Array<Record<string, unknown>>;
+};
+
 describe("deleteHistoryEntry", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("removes only the matching entry by acknowledgedAt", async () => {
+  it("marks the entry as deleted without removing it from history.json", async () => {
     const fetchMock = vi.fn().mockReturnValue(mockFetchResponse(200, {}));
     globalThis.fetch = fetchMock;
 
@@ -207,17 +221,99 @@ describe("deleteHistoryEntry", () => {
 
     await deleteHistoryEntry("token", "gist-id", [entryA, entryB], "2026-08-01T00:00:00Z");
 
-    const call = fetchMock.mock.calls[0];
-    const body = JSON.parse((call[1] as RequestInit).body as string);
-    const content = JSON.parse(body.files["history.json"].content);
-    expect(content.entries).toHaveLength(1);
-    expect(content.entries[0].acknowledgedAt).toBe("2026-08-02T00:00:00Z");
+    const entries = writtenHistory(fetchMock);
+    expect(entries).toHaveLength(2);
+    const deleted = entries.find((e) => e.acknowledgedAt === "2026-08-01T00:00:00Z")!;
+    expect(typeof deleted.deletedAt).toBe("string");
+    expect(Number.isNaN(Date.parse(deleted.deletedAt as string))).toBe(false);
+  });
+
+  it("leaves other entries untouched", async () => {
+    const fetchMock = vi.fn().mockReturnValue(mockFetchResponse(200, {}));
+    globalThis.fetch = fetchMock;
+
+    const entryA = { ...validBoard, acknowledgedAt: "2026-08-01T00:00:00Z" };
+    const entryB = { ...validBoard, acknowledgedAt: "2026-08-02T00:00:00Z" };
+
+    await deleteHistoryEntry("token", "gist-id", [entryA, entryB], "2026-08-01T00:00:00Z");
+
+    const untouched = writtenHistory(fetchMock).find((e) => e.acknowledgedAt === "2026-08-02T00:00:00Z")!;
+    expect(untouched.deletedAt).toBeUndefined();
   });
 
   it("throws GistApiError when the write fails", async () => {
     globalThis.fetch = vi.fn().mockReturnValue(mockFetchResponse(500, {}));
     const entry = { ...validBoard, acknowledgedAt: "2026-08-01T00:00:00Z" };
     await expect(deleteHistoryEntry("token", "gist-id", [entry], "2026-08-01T00:00:00Z")).rejects.toBeInstanceOf(
+      GistApiError
+    );
+  });
+});
+
+describe("restoreHistoryEntry", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("removes deletedAt from the matching entry", async () => {
+    const fetchMock = vi.fn().mockReturnValue(mockFetchResponse(200, {}));
+    globalThis.fetch = fetchMock;
+
+    const deletedEntry = {
+      ...validBoard,
+      acknowledgedAt: "2026-08-01T00:00:00Z",
+      deletedAt: "2026-08-03T12:00:00Z",
+    };
+    const otherDeleted = {
+      ...validBoard,
+      acknowledgedAt: "2026-08-02T00:00:00Z",
+      deletedAt: "2026-08-03T13:00:00Z",
+    };
+
+    await restoreHistoryEntry("token", "gist-id", [deletedEntry, otherDeleted], "2026-08-01T00:00:00Z");
+
+    const entries = writtenHistory(fetchMock);
+    expect(entries).toHaveLength(2);
+    const restored = entries.find((e) => e.acknowledgedAt === "2026-08-01T00:00:00Z")!;
+    expect("deletedAt" in restored).toBe(false);
+    // Der zweite Eintrag bleibt gelöscht.
+    expect(entries.find((e) => e.acknowledgedAt === "2026-08-02T00:00:00Z")!.deletedAt).toBe(
+      "2026-08-03T13:00:00Z"
+    );
+  });
+
+  it("throws GistApiError when the write fails", async () => {
+    globalThis.fetch = vi.fn().mockReturnValue(mockFetchResponse(500, {}));
+    const entry = { ...validBoard, acknowledgedAt: "2026-08-01T00:00:00Z", deletedAt: "2026-08-03T12:00:00Z" };
+    await expect(restoreHistoryEntry("token", "gist-id", [entry], "2026-08-01T00:00:00Z")).rejects.toBeInstanceOf(
+      GistApiError
+    );
+  });
+});
+
+describe("purgeHistoryEntry", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("removes the entry from history.json for good", async () => {
+    const fetchMock = vi.fn().mockReturnValue(mockFetchResponse(200, {}));
+    globalThis.fetch = fetchMock;
+
+    const entryA = { ...validBoard, acknowledgedAt: "2026-08-01T00:00:00Z", deletedAt: "2026-08-03T12:00:00Z" };
+    const entryB = { ...validBoard, acknowledgedAt: "2026-08-02T00:00:00Z" };
+
+    await purgeHistoryEntry("token", "gist-id", [entryA, entryB], "2026-08-01T00:00:00Z");
+
+    const entries = writtenHistory(fetchMock);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].acknowledgedAt).toBe("2026-08-02T00:00:00Z");
+  });
+
+  it("throws GistApiError when the write fails", async () => {
+    globalThis.fetch = vi.fn().mockReturnValue(mockFetchResponse(500, {}));
+    const entry = { ...validBoard, acknowledgedAt: "2026-08-01T00:00:00Z", deletedAt: "2026-08-03T12:00:00Z" };
+    await expect(purgeHistoryEntry("token", "gist-id", [entry], "2026-08-01T00:00:00Z")).rejects.toBeInstanceOf(
       GistApiError
     );
   });

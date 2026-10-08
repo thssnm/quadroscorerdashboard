@@ -1,4 +1,6 @@
 import type { HistoryEntry } from "../gist/types";
+import { activeEntries } from "../gist/history";
+import { HistoryEntryDetails } from "./HistoryEntryDetails";
 
 interface HistoryListProps {
   history: HistoryEntry[];
@@ -6,51 +8,27 @@ interface HistoryListProps {
   isDeleting: (entry: HistoryEntry) => boolean;
 }
 
-const formatTimestamp = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-};
-
+// Bekommt die komplette Historie und blendet die in den Papierkorb
+// verschobenen Einträge (deletedAt gesetzt) selbst aus.
 export const HistoryList = ({ history, onDelete, isDeleting }: HistoryListProps) => {
-  if (history.length === 0) {
+  const entries = activeEntries(history);
+
+  if (entries.length === 0) {
     return <p className="empty-hint">Noch keine abgehakten Ergebnisse.</p>;
   }
 
   const handleDelete = (entry: HistoryEntry) => {
     const label = `${entry.home} ${entry.legsHome}:${entry.legsGuest} ${entry.guest}`;
-    if (window.confirm(`"${label}" wirklich endgültig aus dem Verlauf löschen?`)) {
+    if (window.confirm(`"${label}" in den Papierkorb verschieben?`)) {
       onDelete(entry);
     }
   };
 
   return (
     <ul className="history-list">
-      {history.map((entry) => (
+      {entries.map((entry) => (
         <li key={entry.acknowledgedAt} className="history-list__row">
-          <div className="history-list__main">
-            <div className="history-list__top">
-              <span className="history-list__board">{entry.boardName}</span>
-              <span className="history-list__time">{formatTimestamp(entry.acknowledgedAt)}</span>
-            </div>
-            <span className="history-list__names">
-              {entry.home} <strong>{entry.legsHome}:{entry.legsGuest}</strong> {entry.guest}
-            </span>
-            {entry.highlights.length > 0 && (
-              <ul className="history-list__highlights">
-                {entry.highlights.map((h, i) => (
-                  <li key={i}>{h}</li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <HistoryEntryDetails entry={entry} />
           <button
             className="history-list__delete"
             onClick={() => handleDelete(entry)}

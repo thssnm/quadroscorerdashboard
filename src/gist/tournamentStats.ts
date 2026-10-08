@@ -1,4 +1,5 @@
 import type { HistoryEntry } from "./types";
+import { activeEntries } from "./history";
 import { groupHighlightsByCategory, parseHighlight } from "./highlightParser";
 
 export interface PlayerTournamentStats {
@@ -14,6 +15,8 @@ export interface PlayerTournamentStats {
 // Average-Wert mitliefern), Spiele/Siege, und die eigenen Highlights nach
 // Kategorie gruppiert. Highlights werden über den im Text enthaltenen
 // Spielernamen zugeordnet, nicht pauschal beiden Match-Teilnehmern.
+// Gelöschte Einträge (deletedAt gesetzt, also im Papierkorb) zählen nicht
+// mit - nach dem Wiederherstellen fließen sie automatisch wieder ein.
 export const computeTournamentStats = (history: HistoryEntry[]): PlayerTournamentStats[] => {
   const byName = new Map<
     string,
@@ -27,7 +30,7 @@ export const computeTournamentStats = (history: HistoryEntry[]): PlayerTournamen
     return byName.get(name)!;
   };
 
-  for (const entry of history) {
+  for (const entry of activeEntries(history)) {
     const home = ensure(entry.home);
     home.gamesPlayed += 1;
     if (entry.legsHome > entry.legsGuest) home.gamesWon += 1;

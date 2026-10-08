@@ -80,6 +80,53 @@ describe("computeTournamentStats", () => {
     expect(alice?.highlightLines).toEqual(["Highscore (2): 240, 180", "Highfinish (1): 132"]);
   });
 
+  it("ignores entries that are in the trash (deletedAt set)", () => {
+    const history = [
+      makeEntry({ home: "Alice", guest: "Bob", averageHome: 60, highlights: ["180 (Alice)"] }),
+      makeEntry({
+        home: "Alice",
+        guest: "Bob",
+        acknowledgedAt: "2026-09-02T10:05:00Z",
+        averageHome: 100,
+        highlights: ["140 (Alice)"],
+        deletedAt: "2026-09-03T08:00:00Z",
+      }),
+    ];
+    const alice = computeTournamentStats(history).find((s) => s.name === "Alice");
+    expect(alice?.gamesPlayed).toBe(1);
+    expect(alice?.gamesWon).toBe(1);
+    expect(alice?.average).toBe(60);
+    expect(alice?.highlightLines).toEqual(["Highscore (1): 180"]);
+  });
+
+  it("counts a restored entry again once deletedAt is gone", () => {
+    const restored = makeEntry({
+      home: "Alice",
+      guest: "Bob",
+      acknowledgedAt: "2026-09-02T10:05:00Z",
+      averageHome: 100,
+      highlights: ["140 (Alice)"],
+    });
+    const history = [makeEntry({ home: "Alice", guest: "Bob", averageHome: 60, highlights: ["180 (Alice)"] }), restored];
+
+    const alice = computeTournamentStats(history).find((s) => s.name === "Alice");
+    expect(alice?.gamesPlayed).toBe(2);
+    expect(alice?.average).toBe(80);
+    expect(alice?.highlightLines).toEqual(["Highscore (2): 180, 140"]);
+  });
+
+  it("treats old entries without a deletedAt field as active", () => {
+    // Einträge aus der Zeit vor dem Papierkorb haben das Feld gar nicht.
+    const legacy = makeEntry({ home: "Alice", guest: "Bob" });
+    expect("deletedAt" in legacy).toBe(false);
+    expect(computeTournamentStats([legacy]).find((s) => s.name === "Alice")?.gamesPlayed).toBe(1);
+  });
+
+  it("drops a player entirely when all their entries are deleted", () => {
+    const history = [makeEntry({ home: "Alice", guest: "Bob", deletedAt: "2026-09-03T08:00:00Z" })];
+    expect(computeTournamentStats(history)).toEqual([]);
+  });
+
   it("sorts players by average descending, null averages last", () => {
     const history = [
       makeEntry({ home: "Alice", guest: "Bob", averageHome: 60, averageGuest: 90 }),

@@ -135,11 +135,48 @@ export const savePlayers = async (token: string, gistId: string, players: string
   await patchGistFile(token, gistId, "players.json", JSON.stringify(content, null, 2));
 };
 
-// Entfernt einen Eintrag dauerhaft aus der Historie. acknowledgedAt dient
-// als Identifikator (beim Abhaken per new Date().toISOString() erzeugt -
+// Löscht einen Eintrag per Soft-Delete: er bekommt deletedAt gesetzt,
+// bleibt aber in history.json stehen und taucht im Papierkorb auf, von wo
+// aus er wiederhergestellt werden kann. acknowledgedAt dient als
+// Identifikator (beim Abhaken per new Date().toISOString() erzeugt -
 // praktisch eindeutig, da zwei Abhak-Vorgänge nie exakt dieselbe
 // Millisekunde treffen).
 export const deleteHistoryEntry = async (
+  token: string,
+  gistId: string,
+  currentHistory: HistoryEntry[],
+  acknowledgedAt: string
+): Promise<void> => {
+  const deletedAt = new Date().toISOString();
+  const updated: HistoryFile = {
+    entries: currentHistory.map((e) => (e.acknowledgedAt === acknowledgedAt ? { ...e, deletedAt } : e)),
+  };
+  await patchGistFile(token, gistId, "history.json", JSON.stringify(updated, null, 2));
+};
+
+// Macht den Soft-Delete rückgängig: deletedAt wird entfernt (nicht auf
+// undefined gesetzt - JSON.stringify würde das Feld zwar ohnehin
+// weglassen, so bleibt das geschriebene Objekt aber auch im Speicher
+// sauber), der Eintrag ist danach wieder regulär im Verlauf.
+export const restoreHistoryEntry = async (
+  token: string,
+  gistId: string,
+  currentHistory: HistoryEntry[],
+  acknowledgedAt: string
+): Promise<void> => {
+  const updated: HistoryFile = {
+    entries: currentHistory.map((e) => {
+      if (e.acknowledgedAt !== acknowledgedAt) return e;
+      const { deletedAt: _deletedAt, ...rest } = e;
+      return rest;
+    }),
+  };
+  await patchGistFile(token, gistId, "history.json", JSON.stringify(updated, null, 2));
+};
+
+// Entfernt einen Eintrag endgültig aus history.json - nur aus dem
+// Papierkorb heraus erreichbar und damit nicht mehr rückgängig zu machen.
+export const purgeHistoryEntry = async (
   token: string,
   gistId: string,
   currentHistory: HistoryEntry[],

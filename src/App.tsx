@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { acknowledgeBoard, deleteHistoryEntry, fetchGistData, GistApiError, savePlayers } from "./gist/api";
+import {
+  acknowledgeBoard,
+  deleteHistoryEntry,
+  fetchGistData,
+  GistApiError,
+  purgeHistoryEntry,
+  restoreHistoryEntry,
+  savePlayers,
+} from "./gist/api";
 import type { BoardEntry, HistoryEntry } from "./gist/types";
 import { clearGistId, getEnvToken, loadGistId, saveGistId } from "./gist/config";
 import { computeTournamentStats } from "./gist/tournamentStats";
@@ -7,6 +15,7 @@ import { SetupScreen } from "./components/SetupScreen";
 import { BoardCard } from "./components/BoardCard";
 import { PlayerManager } from "./components/PlayerManager";
 import { HistoryList } from "./components/HistoryList";
+import { TrashList } from "./components/TrashList";
 import { TournamentStats } from "./components/TournamentStats";
 import "./App.css";
 
@@ -111,17 +120,44 @@ function App() {
 
   const historyKey = (entry: HistoryEntry) => `history:${entry.acknowledgedAt}`;
 
-  const handleDeleteHistoryEntry = async (entry: HistoryEntry) => {
+  // Löschen, Wiederherstellen und endgültiges Löschen schreiben alle
+  // history.json - deshalb bekommen sie dieselbe Fehler-/Busy-Behandlung.
+  const runHistoryAction = async (
+    entry: HistoryEntry,
+    action: () => Promise<void>,
+    errorMessage: string
+  ) => {
     setSavingKey(historyKey(entry));
     try {
-      await deleteHistoryEntry(token, gistId, history, entry.acknowledgedAt);
+      await action();
       await refresh();
     } catch (e) {
-      setError(e instanceof GistApiError ? e.message : "Fehler beim Löschen.");
+      setError(e instanceof GistApiError ? e.message : errorMessage);
     } finally {
       setSavingKey(null);
     }
   };
+
+  const handleDeleteHistoryEntry = (entry: HistoryEntry) =>
+    runHistoryAction(
+      entry,
+      () => deleteHistoryEntry(token, gistId, history, entry.acknowledgedAt),
+      "Fehler beim Löschen."
+    );
+
+  const handleRestoreHistoryEntry = (entry: HistoryEntry) =>
+    runHistoryAction(
+      entry,
+      () => restoreHistoryEntry(token, gistId, history, entry.acknowledgedAt),
+      "Fehler beim Wiederherstellen."
+    );
+
+  const handlePurgeHistoryEntry = (entry: HistoryEntry) =>
+    runHistoryAction(
+      entry,
+      () => purgeHistoryEntry(token, gistId, history, entry.acknowledgedAt),
+      "Fehler beim endgültigen Löschen."
+    );
 
   const pendingBoards = boards.filter((b) => !b.data.acknowledged);
   const pendingCount = pendingBoards.length;
@@ -130,7 +166,10 @@ function App() {
   return (
     <div className="app">
       <header className="app__header">
-        <h1>Darts Dashboard</h1>
+        <div className="app__title">
+          <h1>Darts Dashboard</h1>
+          <span className="app__version">v{__APP_VERSION__}</span>
+        </div>
         <div className="app__header-actions">
           {loading && <span className="app__loading">Aktualisiere …</span>}
           <button
@@ -182,6 +221,13 @@ function App() {
           isDeleting={(entry) => savingKey === historyKey(entry)}
         />
       </section>
+
+      <TrashList
+        history={history}
+        onRestore={handleRestoreHistoryEntry}
+        onPurge={handlePurgeHistoryEntry}
+        isBusy={(entry) => savingKey === historyKey(entry)}
+      />
 
       <section className="app__section">
         <PlayerManager players={players} onSave={handleSavePlayers} isSaving={savingKey === "players"} />
